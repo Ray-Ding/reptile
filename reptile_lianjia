@@ -1,0 +1,90 @@
+# 链家网二手房信息爬取
+import re
+import time
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+from openpyxl import Workbook
+
+url = 'https://bj.lianjia.com/ershoufang/'
+page = ('pg')
+# 设置请求头部信息
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+    'Accept': 'text/html;q=0.9,*/*;q=0.8',
+    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+    'Accept-Encoding': 'gzip',
+    'Connection': 'close',
+    'Referer': 'http://www.baidu.com/link?url=_andhfsjjjKRgEWkj7i9cFmYYGsisrnm2A-TN3XZDQXxvGsM9k9ZZSnikW2Yds4s&amp;wd=&amp;eqid=c3435a7d00146bd600000003582bfd1f'
+    }
+
+# 循环抓取列表页信息
+for i in range(1, 2):
+    if i == 1:
+        i = str(i)
+        a = (url + page + i + '/')
+        r = requests.get(url=a, headers=headers)
+        html = r.content
+    else:
+        i = str(i)
+        a = (url + page + i + '/')
+        r = requests.get(url=a, headers=headers)
+        html2 = r.content
+        html = html + html2
+    # 每次间隔1秒
+    time.sleep(0.5)
+
+# 解析抓取的页面内容
+lj = BeautifulSoup(html, 'html.parser')
+
+clears = lj.find_all('li', attrs={'class': 'clear'})
+houseInfo = []
+guanzhuInfo = []
+daikanInfo = []
+timeInfo = []
+subwayInfo = []
+positionInfo = []
+totalpriceInfo = []
+
+for clear in clears:
+    houseInfo.append(clear.find('div', 'houseInfo').get_text())
+
+    guanzhuInfo.append(clear.find(text=re.compile('人关注')))  # 很关键，哈哈哈
+    daikanInfo.append(clear.find(text=re.compile('次带看')))
+
+    timeInfo.append(clear.find('div', 'timeInfo').get_text())
+
+    temp = clear.find('span', 'subway')
+    if temp is None:
+        subwayInfo.append('')
+    else:
+        subwayInfo.append(temp.get_text())
+
+    positionInfo.append(clear.find('div', 'positionInfo').get_text())
+    totalpriceInfo.append(clear.find('div', 'totalPrice').get_text())
+
+
+pd.set_option('display.max_colwidth',5000)
+
+data ={
+    'houseInfo': houseInfo,
+    'guanzhuInfo': guanzhuInfo, 'daikanInfo': daikanInfo,
+    'timeInfo': timeInfo, 'subwayInfo': subwayInfo, 'positionInfo': positionInfo, 'totalpriceInfo': totalpriceInfo
+}
+
+wb = Workbook()
+sheet = wb.active
+sheet.title = "New Sheet"
+sheet.append(houseInfo)
+sheet.append(guanzhuInfo)
+sheet.append(daikanInfo)
+sheet.append(timeInfo)
+sheet.append(subwayInfo)
+sheet.append(positionInfo)
+sheet.append(totalpriceInfo)
+
+
+wb.save('excel.xlsx')
+
+print(data, 'finish!')
+
